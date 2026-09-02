@@ -1,0 +1,14 @@
+[Unit]
+Description=Dometic CFX3 BLE telemetry logger
+After=bluetooth.target
+
+[Service]
+# adjust paths + user to your install
+User=pi
+WorkingDirectory=/home/pi/cfx3-ble-logger
+ExecStart=/home/pi/cfx3-ble-logger/venv/bin/python cfx3_logger.py
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
