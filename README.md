@@ -13,8 +13,7 @@ One JSON snapshot every 20 s, one JSONL history line per minute:
 ```
 
 I built this to feed my truck's off-grid power dashboard (the fridge is the
-one load that's never allowed to die, so it earns telemetry). Write-up of the
-larger project: [coop.philip.one/static/energy-series.html](https://coop.philip.one/static/energy-series.html).
+one load that's never allowed to die, so it earns telemetry).
 
 ## Why this exists
 
