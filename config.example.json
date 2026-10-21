@@ -1,5 +1,6 @@
 {
   "mac": "XX:XX:XX:XX:XX:XX",
   "adapter": "hci0",
-  "output_dir": "/var/lib/cfx3"
+  "output_dir": "/var/lib/cfx3",
+  "transport": "auto"
 }

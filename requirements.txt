@@ -1,0 +1,7 @@
+# Transport "bleak" (default first attempt):
+bleak>=0.21
+
+# Transport "gatttool" / the "auto" fallback (raw ATT, bypasses BlueZ GATT).
+# Also needs the `gatttool` binary from your distro's bluez package.
+pygatt>=4.0.5
+pexpect>=4.8

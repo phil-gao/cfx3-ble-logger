@@ -37,6 +37,37 @@ PING → ACK → HELLO → ACK handshake, then per-topic subscribe frames, then 
 fridge publishes state — and every publish must be ACKed or it stops talking.
 Temperatures are signed little-endian deci-°C; voltage is unsigned LE deci-V.
 
+## When bleak returns zero services (the raw-ATT transport)
+
+On some BlueZ + fridge-firmware combinations, BlueZ's high-level GATT layer
+**silently stops resolving the CFX3's services**. The link connects fine, it's
+stable and even encrypted — but `bluetoothctl info <MAC>` never shows
+`ServicesResolved: yes` and `list-attributes` is empty, so **bleak dies at
+`start_notify` with `BleakCharacteristicNotFoundError (537a0302 … not found)`**
+and retries forever. (The CFX3's BLE module is an ESP32; BlueZ's robust-caching /
+"Server Supported Features" handshake appears to choke on its firmware.)
+
+The fridge is fine — it's BlueZ's abstraction that's broken. Prove it with the
+raw protocol:
+
+```bash
+sudo btmon &                  # watch the actual ATT traffic on the wire
+gatttool -b <MAC> --primary   # raw ATT service discovery (bypasses BlueZ GATT)
+#  -> shows service 537a0300 @ 0x0028-0xffff even when bluetoothctl shows nothing
+gatttool -b <MAC> --characteristics
+#  -> WRITE 537a0301 @ handle 0x002a ; NOTIFY 537a0302 @ 0x002e (CCCD 0x002f)
+```
+
+If raw ATT works but bleak doesn't, use the **`gatttool` transport**: it drives
+`gatttool` via [pygatt] and speaks ATT directly, sidestepping BlueZ's GATT layer.
+Set `"transport": "gatttool"` in `config.json`, or leave it `"auto"` (the
+default) — the logger tries bleak first and **falls back to raw ATT
+automatically** the moment BlueZ fails to resolve the services. The `gatttool`
+transport needs `pip install pygatt pexpect` plus the `gatttool` binary (ships
+with the bluez package).
+
+[pygatt]: https://github.com/peplin/pygatt
+
 ## Install
 
 On a Pi (or any Linux with BlueZ) with Python 3.11+:
@@ -44,7 +75,7 @@ On a Pi (or any Linux with BlueZ) with Python 3.11+:
 ```bash
 git clone https://github.com/phil-gao/cfx3-ble-logger
 cd cfx3-ble-logger
-python3 -m venv venv && venv/bin/pip install bleak
+python3 -m venv venv && venv/bin/pip install -r requirements.txt
 cp config.example.json config.json
 ```
 
@@ -100,6 +131,12 @@ sudo systemctl enable --now cfx3-logger
 - No watts here: the fridge doesn't measure its own power. Pair this with a
   shunt (e.g. Victron SmartShunt via
   [keshavdv/victron-ble](https://github.com/keshavdv/victron-ble)) for draw.
+- **One radio can't both scan and hold a connection well.** If the same adapter
+  is also running a passive BLE *scanner* (e.g. a Victron instant-readout
+  logger), its continuous scanning starves this connection and the fridge link
+  drops every minute or so (it auto-reconnects — you just get gaps). Duty-cycle
+  the scanner (short scan windows, then idle), or give the fridge its own USB
+  Bluetooth dongle. The logger survives the drops either way.
 - Tested on a CFX3-55IM + Raspberry Pi 5 (Bookworm, BlueZ 5.x). Other CFX3
   models speak the same DDM1 dialect and should work; CFX2/CFX5 use DDM2 —
   the protocol module for it is included but this logger doesn't wire it up.
